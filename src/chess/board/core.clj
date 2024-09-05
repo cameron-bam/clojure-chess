@@ -51,7 +51,7 @@
 (def initial-castles {:short true :long true})
 
 (def initial-board (-> (reduce (fn [board {:keys [coords] :as piece}] (assoc board coords piece)) {} initial-pieces)
-                       (assoc :turn :white :moves '() :castling-rights #{"8A" "8E" "8H" "1A" "1E" "1H"})))
+                       (assoc :turn :white :castling-rights #{"8A" "8E" "8H" "1A" "1E" "1H"})))
 
 (defn opposing-color [color]
   (if (= color :white) :black :white))
@@ -178,7 +178,7 @@
                                                                   (-> castles :king :coords board-coards->file)
                                                                   (-> rook :coords board-coards->file))
                                                                  (map (fn [file] (-> rook :coords board-coords->rank (str file)))))]
-                                          (when-not (some #(or #_(board %) (under-attack %)) (take 3 castle-spaces))
+                                          (when-not (some #(or (board %) (under-attack %)) (take 3 castle-spaces))
                                             (assoc rook :castle-spaces (rest castle-spaces)))))))]
     (when (:king castles)
       (map (fn [{[rook-coord king-coord] :castle-spaces :as rook}]
@@ -211,18 +211,22 @@
   (if castle
     (reduce apply-move board castle)
     (let [new-board (-> board
-                        (update :moves conj move)
                         (dissoc start (:coords capture))
                         (assoc (:finish move) {:piece piece :color color :coords finish}
                                :en-passante (when en-passante finish)
-                               :turn (opposing-color color)))]
+                               :turn (opposing-color color))
+                        (with-meta {:last-move move}))]
       (cond-> new-board
         (#{:rook :king} piece)
         (update :castling-rights disj start)))))
 
 (defn take-turn [board]
-  (let [moves (get-all-valid-moves board)]
-    (apply-move board (first moves))))
+  (if-let [moves (get-all-valid-moves board)]
+    (apply-move board (first moves))
+    (merge board (if (is-check-for? board)
+                   {:game-result :checkmate
+                    :winner (opposing-color (:color board))}
+                   {:game-result :draw}))))
 
 (comment
   (get-all-valid-moves {"2A" {:piece :pawn :color :black :coords "2A"}
@@ -238,5 +242,7 @@
   (get-all-basic-moves initial-board :white)
   (get-all-valid-moves initial-board)
   
-  (-> (iterate take-turn initial-board)
-      (nth 100)))
+  (->> (iterate take-turn initial-board)
+       (map (comp :last-move meta))
+       (take 100)
+       (rest)))
