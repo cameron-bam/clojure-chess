@@ -13,9 +13,6 @@
     {:rank (str (.charAt coords 0))
      :file (str (.charAt coords 1))}))
 
-(defn board-coords->rank [{:keys [rank]}] rank)
-(defn board-coards->file [{:keys [file]}] file)
-
 (defn board-coords->array-coords [{:keys [rank file]}]
   [(try (int (.indexOf (seq RANKS) (.charAt rank 0))) (catch Exception _ -1))
    (try (int (.indexOf (seq FILES) (.charAt file 0))) (catch Exception _ -1))])
@@ -145,7 +142,7 @@
                                        %)
                                      %)
                                    %)))
-        all-moves (mapcat #(let [rank (-> % :finish board-coords->rank)]
+        all-moves (mapcat #(let [rank (-> % :finish :rank)]
                              (if (= rank last-rank)
                                (map (fn [p] (assoc % :promotion p)) [:rook :knight :bishop :queen])
                                [%]))
@@ -221,26 +218,39 @@
   ([board color]
    (some #(= :king (-> % :capture :piece)) (get-all-basic-moves board color))))
 
-(defn apply-move [board {:keys [piece start finish color capture en-passante castle] :as move}]
+(defn apply-move [board {:keys [piece start finish turn capture en-passante castle] :as move}]
   (if castle
     (reduce apply-move board castle)
     (let [new-board (-> board
                         (dissoc start (:coords capture))
-                        (assoc (:finish move) {:piece piece :color color :coords finish}
+                        (assoc (:finish move) {:piece piece :color turn :coords finish}
                                :en-passante (when en-passante finish)
-                               :turn (opposing-color color))
+                               :turn (opposing-color turn))
                         (with-meta {:last-move move}))]
       (cond-> new-board
         (#{:rook :king} piece)
         (update :castling-rights disj start)))))
 
-(defn take-turn [board]
-  (if-let [moves (get-all-valid-moves board)]
-    (apply-move board (first moves))
-    (merge board (if (is-check-for? board)
-                   {:game-result :checkmate
-                    :winner (opposing-color (:color board))}
-                   {:game-result :draw}))))
+(defn take-turn [{:keys [turn] :as board} move]
+  (let [new-board (apply-move board move)]
+    (if-not (seq (get-all-valid-moves new-board))
+      (merge board (if (is-check-for? new-board turn)
+                     {:game-result :checkmate
+                      :winner turn}
+                     {:game-result :draw}))
+      new-board)))
+
+(def piece-scores
+  {:pawn 1
+   :kight 3
+   :bishop 3
+   :rook 5
+   :queen 9
+   :king Integer/MAX_VALUE})
+
+(defn score-move [move]
+  (get piece-scores (or (-> move :capture :piece)
+                        (-> move :promotion)) 0))
 
 (comment
   (get-all-valid-moves (normalize-board
@@ -255,9 +265,4 @@
                          :en-passante "4D"}))
   (apply-move initial-board (second (get-all-basic-moves initial-board :white)))
   (get-all-basic-moves initial-board :white)
-  (get-all-valid-moves initial-board)
-  
-  (->> (iterate take-turn initial-board)
-       (map (comp :last-move meta))
-       (take 100)
-       (rest)))
+  (get-all-valid-moves initial-board))
