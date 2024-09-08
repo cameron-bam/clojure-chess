@@ -10,7 +10,7 @@
              (if (= depth 0)
                (assoc node :negamax-score (* color-int (score-node node)))
                (let [children (->> (get-children node)
-                                   (filter (complement (:visited @state))))]
+                                   (remove (:visited @state)))]
                  (if-not (seq children)
                    (assoc node :negamax-score (score-node node))
                    (let [{:keys [negamax-score] :as best-node}

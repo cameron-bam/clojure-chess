@@ -174,7 +174,7 @@
   ;; - [x] The previous two rules don't apply to the rook
   (let [castles (->> castling-rights
                      (map (partial get board))
-                     (filter (comp (partial = color) :color))
+                     (filter (comp #{color} :color))
                      (group-by :piece))
         under-attack (->> (get-all-basic-moves board (opposing-color color))
                           (map :finish)
@@ -211,18 +211,18 @@
 (comment
   (get-castle-moves initial-board :white))
 
-(declare is-check-for? apply-move)
-
-(defn get-all-valid-moves [{:keys [turn] :as board}]
-  (concat (remove #(is-check-for? (apply-move board %))
-                  (get-all-basic-moves board turn))
-          (get-castle-moves board turn)))
+(declare apply-move)
 
 (defn is-check-for?
   ([board]
    (is-check-for? board (:turn board)))
   ([board color]
    (some #(= :king (-> % :capture :piece)) (get-all-basic-moves board color))))
+
+(defn get-all-valid-moves [{:keys [turn] :as board}]
+  (concat (remove #(is-check-for? (apply-move board %))
+                  (get-all-basic-moves board turn))
+          (get-castle-moves board turn)))
 
 (def piece-scores
   {:pawn 1
