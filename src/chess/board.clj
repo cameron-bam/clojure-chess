@@ -261,14 +261,6 @@
                      {:game-result :draw}))
       new-board)))
 
-(def piece-scores
-  {:pawn 1
-   :kight 3
-   :bishop 3
-   :rook 5
-   :queen 9
-   :king Integer/MAX_VALUE})
-
 (comment
   (get-all-valid-moves (normalize-board
                         {"2A" {:piece :pawn :color :black :coords "2A"}
