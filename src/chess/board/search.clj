@@ -1,5 +1,5 @@
 (ns chess.board.search
-  (:require [chess.board :refer [get-all-valid-moves take-turn initial-board opposing-color] :as board]))
+  (:require [chess.board :refer [get-all-valid-moves take-turn initial-board score-for] :as board]))
 
 (defn make-negamax-search [{:keys [get-children score-node]}]
   (letfn [(negamax-search
@@ -23,12 +23,13 @@
     (comp :best-node negamax-search)))
 
 
-(comment
+(defn negamax-search-board [board]
   (let [negamax-search (make-negamax-search {:get-children (fn [board] (->> board get-all-valid-moves (map #(take-turn board %))))
-                                             :score-node (fn [{:keys [score turn]}] (->> [turn (opposing-color turn)]
-                                                                                         (map score)
-                                                                                         (apply -)))})
+                                             :score-node (partial score-for (:turn board))})
         state (atom {:visited #{}})
-        move (time (-> (negamax-search initial-board 4 1 state) meta :last-move))]
+        move (time (-> (negamax-search board 4 1 state) meta :last-move))]
     (prn "Nodes visited" (count (:visited @state)))
     move))
+
+(comment
+  (negamax-search-board initial-board))

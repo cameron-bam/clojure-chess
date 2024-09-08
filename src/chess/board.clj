@@ -236,7 +236,10 @@
   (get piece-scores (or (-> move :capture :piece)
                         (-> move :promotion)) 0))
 
-(score-move {:capture {:piece :pawn}})
+(defn score-for [color {:keys [score]}]
+  (->> [color (opposing-color color)]
+       (map score)
+       (apply -)))
 
 (defn apply-move [{:keys [turn] :as board} {:keys [piece start finish capture color en-passante castle] :as move}]
   (if castle
