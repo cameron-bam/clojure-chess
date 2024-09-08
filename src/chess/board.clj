@@ -62,7 +62,7 @@
                          [(->coords-map k) (update v :coords ->coords-map)]))))))
 
 (def initial-board (-> (reduce (fn [board {:keys [coords] :as piece}] (assoc board coords piece)) {} initial-pieces)
-                       (assoc :turn :white :castling-rights #{"8A" "8E" "8H" "1A" "1E" "1H"})
+                       (assoc :turn :white :castling-rights #{"8A" "8E" "8H" "1A" "1E" "1H"} :score {:white 0 :black 0})
                        (normalize-board)))
 
 (defn opposing-color [color]
@@ -224,14 +224,29 @@
   ([board color]
    (some #(= :king (-> % :capture :piece)) (get-all-basic-moves board color))))
 
-(defn apply-move [board {:keys [piece start finish turn capture en-passante castle] :as move}]
+(def piece-scores
+  {:pawn 1
+   :kight 3
+   :bishop 3
+   :rook 5
+   :queen 9
+   :king Integer/MAX_VALUE})
+
+(defn score-move [move]
+  (get piece-scores (or (-> move :capture :piece)
+                        (-> move :promotion)) 0))
+
+(score-move {:capture {:piece :pawn}})
+
+(defn apply-move [{:keys [turn] :as board} {:keys [piece start finish capture color en-passante castle] :as move}]
   (if castle
     (reduce apply-move board castle)
     (let [new-board (-> board
                         (dissoc start (:coords capture))
-                        (assoc (:finish move) {:piece piece :color turn :coords finish}
+                        (assoc (:finish move) {:piece piece :color color :coords finish}
                                :en-passante (when en-passante finish)
                                :turn (opposing-color turn))
+                        (update-in [:score turn] + (score-move move))
                         (with-meta {:last-move move}))]
       (cond-> new-board
         (#{:rook :king} piece)
@@ -253,10 +268,6 @@
    :rook 5
    :queen 9
    :king Integer/MAX_VALUE})
-
-(defn score-move [move]
-  (get piece-scores (or (-> move :capture :piece)
-                        (-> move :promotion)) (inc Integer/MIN_VALUE)))
 
 (comment
   (get-all-valid-moves (normalize-board
