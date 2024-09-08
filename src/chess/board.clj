@@ -3,9 +3,11 @@
 (def RANKS "87654321")
 (def FILES "ABCDEFGH")
 
-(defn array-coords->board-coords [[x y]]
-  {:rank (str (get RANKS x))
-   :file (str (get FILES y))})
+(def array-coords->board-coords
+  (memoize
+   (fn array-coords->board-coords* [[x y]]
+     {:rank (str (get RANKS x))
+      :file (str (get FILES y))})))
 
 (defn ->coords-map [coords]
   (if (map? coords)
@@ -13,9 +15,11 @@
     {:rank (str (.charAt coords 0))
      :file (str (.charAt coords 1))}))
 
-(defn board-coords->array-coords [{:keys [rank file]}]
-  [(try (int (.indexOf (seq RANKS) (.charAt rank 0))) (catch Exception _ -1))
-   (try (int (.indexOf (seq FILES) (.charAt file 0))) (catch Exception _ -1))])
+(def board-coords->array-coords
+  (memoize
+   (fn board-coords->array-coords* [{:keys [rank file]}]
+     [(try (int (.indexOf (seq RANKS) (.charAt rank 0))) (catch Exception _ -1))
+      (try (int (.indexOf (seq FILES) (.charAt file 0))) (catch Exception _ -1))])))
 
 (defn includes [x [start end]]
   (and (>= x start) (< x end)))
@@ -53,7 +57,7 @@
                        (if (keyword? k)
                          (case k
                            :castling-rights [k (into #{} (map ->coords-map) v)]
-                           :en-passante [k (->coords-map v)] 
+                           :en-passante [k (->coords-map v)]
                            [k v])
                          [(->coords-map k) (update v :coords ->coords-map)]))))))
 
@@ -151,13 +155,15 @@
 
 (defmethod get-basic-moves :default [_ _] [])
 
-(defn get-all-basic-moves [board color]
-  (->> board
-       keys
-       (filter map?)
-       (map (partial get board))
-       (filter (comp (partial = color) :color))
-       (mapcat (comp (partial get-basic-moves board) :coords))))
+(def get-all-basic-moves
+  (memoize
+   (fn get-all-basic-moves* [board color]
+     (->> board
+          keys
+          (filter map?)
+          (map (partial get board))
+          (filter (comp #{color} :color))
+          (mapcat (comp (partial get-basic-moves board) :coords))))))
 
 (defn get-castle-moves [{:keys [castling-rights] :as board} color]
   ;; Rules
@@ -212,7 +218,7 @@
                   (get-all-basic-moves board turn))
           (get-castle-moves board turn)))
 
-(defn is-check-for? 
+(defn is-check-for?
   ([board]
    (is-check-for? board (:turn board)))
   ([board color]
@@ -250,7 +256,7 @@
 
 (defn score-move [move]
   (get piece-scores (or (-> move :capture :piece)
-                        (-> move :promotion)) 0))
+                        (-> move :promotion)) (inc Integer/MIN_VALUE)))
 
 (comment
   (get-all-valid-moves (normalize-board
