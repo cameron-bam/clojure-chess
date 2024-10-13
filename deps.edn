@@ -1,2 +1,7 @@
-{:aliases {:profiling {:jvm-opts ["-Djdk.attach.allowAttachSelf" "-Xmx6G"]
-                       :extra-deps {com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.2.2"}}}}}
+{:deps {com.clojure-goes-fast/clj-async-profiler {:mvn/version "1.2.2"}}
+ :paths ["dev" "src"]
+ :aliases {:profiling {:jvm-opts ["-Djdk.attach.allowAttachSelf" "-Xmx8G"]}
+           :test-search {:exec-fn chess.board.search/run-test-search!
+                         :jvm-opts ["-Xmx16G"]}
+           :search-board {:exec-fn chess.board.search/search-board!
+                          :jvm-opts ["-Xmx16G"]}}}
